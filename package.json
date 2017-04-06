@@ -14,12 +14,12 @@
     "AWS",
     "Lambda"
   ],
-  "author": "Tilo Prütz",
+  "author": "Tilo Prütz <tilo@pruetz.net>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/toaster/lambda-jakefile/issues"
   },
-  "homepage": "https://github.com/toaster/lambda-jakefile",
+  "homepage": "https://github.com/toaster/lambda-jakefile#readme",
   "dependencies": {
     "aws-sdk": "^2.22.0",
     "jake": "^8.0.15",
