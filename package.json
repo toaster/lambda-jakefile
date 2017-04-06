@@ -1,0 +1,30 @@
+{
+  "name": "code_cowboy-lambda-jakefile",
+  "version": "0.0.1",
+  "description": "A jakefile to support AWS Lambda deployment.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/toaster/lambda-jakefile.git"
+  },
+  "keywords": [
+    "AWS",
+    "Lambda"
+  ],
+  "author": "Tilo Prütz",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/toaster/lambda-jakefile/issues"
+  },
+  "homepage": "https://github.com/toaster/lambda-jakefile",
+  "dependencies": {
+    "aws-sdk": "^2.22.0",
+    "jake": "^8.0.15",
+    "procstreams": "^0.3.0",
+    "slackr": "^1.0.0",
+    "tempy": "^0.1.0"
+  }
+}
