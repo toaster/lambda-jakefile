@@ -1,6 +1,6 @@
 {
   "name": "code_cowboy-lambda-jakefile",
-  "version": "0.0.2",
+  "version": "0.3.0",
   "description": "A jakefile to support AWS Lambda deployment.",
   "main": "index.js",
   "scripts": {
@@ -25,6 +25,7 @@
     "jake": "^8.0.15",
     "procstreams": "^0.3.0",
     "slackr": "^1.0.0",
+    "sleep-promise": "^2.0.0",
     "tempy": "^0.1.0"
   }
 }
