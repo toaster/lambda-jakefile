@@ -74,7 +74,7 @@ function createPackage(name, packageJson) {
         }
         shellCommands = shellCommands.concat([
           "npm install --production",
-          "zip -r package.zip index.js node_modules lib app",
+          "zip -rq package.zip index.js node_modules lib app",
           `cp package.zip ${packagePath}`,
         ])
         jake.exec(shellCommands, {printStdout: true, printStderr: true}, (...args) => {
