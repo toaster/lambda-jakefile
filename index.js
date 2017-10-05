@@ -27,8 +27,7 @@ $.prototype.promise = function() {
   });
 };
 
-desc('Creates a package for upload to AWS.');
-task('package', {async: true}, function () {
+function createPackage() {
   const Path = require('path');
 
   return Promise.all([
@@ -64,6 +63,11 @@ task('package', {async: true}, function () {
       complete({commit: commit, path: `${packagePath}`});
     });
   }).catch((e) => { promiseFail(e); });
+}
+
+desc('Creates a package for upload to AWS.');
+task('package', {async: true}, function () {
+  return createPackage();
 });
 
 function performDeployment(FunctionName, force) {
