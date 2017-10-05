@@ -27,6 +27,24 @@ $.prototype.promise = function() {
   });
 };
 
+var _definitions;
+function deployDefinitions() {
+  if (!_definitions) {
+    if (!fs.existsSync("deploy.json")) {
+      fail("You have to configure your deployments in deploy.json.");
+    }
+    let config = JSON.parse(fs.readFileSync("deploy.json"));
+    _definitions = config.deployments;
+    if (!_definitions && config.functionName) {
+      _definitions = [{functionName: config.functionName}];
+    }
+    if (!_definitions) {
+      fail("Your deploy.json neither contains “deployments” nor “functionName”.");
+    }
+  }
+  return _definitions;
+}
+
 function createPackage() {
   const Path = require('path');
 
@@ -147,12 +165,8 @@ function performDeployment(FunctionName, force) {
 }
 
 desc("Deploys the package on AWS.");
-task('deploy', ['package'], {async: true}, function(FunctionName, force) {
-  if (!FunctionName && fs.existsSync("deploy.json")) {
-    let config = JSON.parse(fs.readFileSync("deploy.json"));
-    FunctionName = config.functionName;
+task('deploy', ['package'], {async: true}, function(force) {
+  for (let definition of deployDefinitions()) {
+    performDeployment(definition.functionName, force);
   }
-  if (!FunctionName) { fail("You have to specify a function name to deploy to."); }
-
-  performDeployment(FunctionName, force);
 });
