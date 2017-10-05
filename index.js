@@ -1,3 +1,4 @@
+const fs = require('fs');
 const $ = require('procstreams');
 const Tempy = require('tempy');
 
@@ -40,8 +41,6 @@ task('package', {async: true}, function () {
     var packagePath = `${packagedir}/${Path.basename(basedir)}_${commit}.zip`;
 
     return new Promise((resolve, reject) => {
-      const fs = require('fs');
-
       if (fs.existsSync(packagePath)) {
         console.log(`Package already exists in ${packagePath}`);
         resolve();
@@ -67,16 +66,7 @@ task('package', {async: true}, function () {
   }).catch((e) => { promiseFail(e); });
 });
 
-desc("Deploys the package on AWS.");
-task('deploy', ['package'], {async: true}, function(FunctionName, force) {
-  const fs = require('fs');
-
-  if (!FunctionName && fs.existsSync("deploy.json")) {
-    var config = JSON.parse(fs.readFileSync("deploy.json"));
-    FunctionName = config.functionName;
-  }
-  if (!FunctionName) { fail("You have to specify a function name to deploy to."); }
-
+function performDeployment(FunctionName, force) {
   const Aws = require('aws-sdk');
   const sleep = require('sleep-promise');
   console.log(`Deploying to AWS profile ${Aws.config.credentials.profile}.`);
@@ -150,4 +140,15 @@ task('deploy', ['package'], {async: true}, function(FunctionName, force) {
   }).then(() => {
     complete();
   }).catch((e) => { promiseFail(e); });
+}
+
+desc("Deploys the package on AWS.");
+task('deploy', ['package'], {async: true}, function(FunctionName, force) {
+  if (!FunctionName && fs.existsSync("deploy.json")) {
+    let config = JSON.parse(fs.readFileSync("deploy.json"));
+    FunctionName = config.functionName;
+  }
+  if (!FunctionName) { fail("You have to specify a function name to deploy to."); }
+
+  performDeployment(FunctionName, force);
 });
