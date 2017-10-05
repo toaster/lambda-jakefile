@@ -45,9 +45,7 @@ function deployDefinitions() {
   return _definitions;
 }
 
-function createPackage() {
-  const Path = require('path');
-
+function createPackage(name, packageJson) {
   return Promise.all([
     $("git rev-parse @").promise(),
     $("git rev-parse --show-toplevel").promise(),
@@ -55,7 +53,7 @@ function createPackage() {
     var commit = commit_and_basedir[0];
     var basedir = commit_and_basedir[1];
     var packagedir = `${basedir}/pkg`;
-    var packagePath = `${packagedir}/${Path.basename(basedir)}_${commit}.zip`;
+    var packagePath = `${packagedir}/${name}_${commit}.zip`;
 
     return new Promise((resolve, reject) => {
       if (fs.existsSync(packagePath)) {
@@ -65,27 +63,42 @@ function createPackage() {
         if (!fs.existsSync(packagedir)) {
           fs.mkdirSync(packagedir);
         }
+        let previousDir = process.cwd();
         process.chdir(Tempy.directory());
-        jake.exec([
+        let shellCommands = [
           `rsync -a ${basedir}/.git .`,
           `git reset --hard ${commit}`,
+        ];
+        if (packageJson) {
+          shellCommands.push(`cp ${packageJson} package.json`);
+        }
+        shellCommands = shellCommands.concat([
           "npm install --production",
           "zip -r package.zip index.js node_modules lib app",
           `cp package.zip ${packagePath}`,
-        ], {printStdout: true, printStderr: true}, () => {
+        ])
+        jake.exec(shellCommands, {printStdout: true, printStderr: true}, (...args) => {
+          process.chdir(previousDir);
           console.log(`Package created in ${packagePath}`);
           resolve();
         });
       }
     }).then(() => {
-      complete({commit: commit, path: `${packagePath}`});
+      return {name: name, commit: commit, path: `${packagePath}`};
     });
-  }).catch((e) => { promiseFail(e); });
+  });
 }
 
 desc('Creates a package for upload to AWS.');
 task('package', {async: true}, function () {
-  return createPackage();
+  var chain = Promise.resolve();
+  var packages = {};
+  for (let definition of deployDefinitions()) {
+    chain = chain
+        .then(() => createPackage(definition.functionName, definition.packageJson))
+        .then(package => { packages[package.name] = package; });
+  }
+  chain.then(() => complete(packages)).catch(e => promiseFail(e));
 });
 
 function performDeployment(FunctionName, force) {
@@ -93,7 +106,7 @@ function performDeployment(FunctionName, force) {
   const sleep = require('sleep-promise');
   console.log(`Deploying to AWS profile ${Aws.config.credentials.profile}.`);
 
-  var package = jake.Task['package'].value;
+  var package = jake.Task['package'].value[FunctionName];
   var lambda = new Aws.Lambda({region: 'eu-west-1'});
   lambda.listAliases({FunctionName}).promise().then((result) => {
     return result.Aliases.find((alias) => { return alias.Name == 'active'; });
