@@ -1,5 +1,6 @@
 const fs = require('fs');
 const $ = require('procstreams');
+const Aws = require('aws-sdk');
 const Tempy = require('tempy');
 
 // jake's fail method is not suitable for promises
@@ -116,7 +117,6 @@ class Cancel extends Error {
 }
 
 function performDeployment(FunctionName, force) {
-  const Aws = require('aws-sdk');
   console.log(`Deploying to ${FunctionName} in AWS profile ${Aws.config.credentials.profile}.`);
 
   var package = jake.Task['package'].value[FunctionName];
@@ -200,6 +200,29 @@ function sendDRINotification() {
   });
 }
 
+var _localConfig;
+function localConfig(key) {
+  if (_localConfig === undefined) {
+    let path = `${process.env.HOME}/.config/infopark/aws_utils.json`;
+    if (fs.existsSync(path)) {
+      _localConfig = JSON.parse(fs.readFileSync(path));
+    } else {
+      _localConfig = {};
+    }
+  }
+  return _localConfig[key];
+}
+
+const DEV_ACCOUNT_ID = process.env.INFOPARK_AWS_DEV_ACCOUNT_ID || localConfig('dev_account_id');
+if (!DEV_ACCOUNT_ID) {
+  console.warn("The Infopark AWS development account ID is not configured.");
+}
+
+function determineAccountId() {
+  var sts = new Aws.STS();
+  return sts.getCallerIdentity().promise().then(({Account}) => Account);
+}
+
 desc("Deploys the package on AWS.");
 task('deploy', ['package'], {async: true}, function(force) {
   var deployments = [];
@@ -207,8 +230,12 @@ task('deploy', ['package'], {async: true}, function(force) {
     deployments.push(performDeployment(definition.functionName, force));
   }
   Promise.all(deployments).then(deployed => {
-    if (deployed.some(d => d)) {
-      return sendDRINotification();
+    if (deployed.includes(true)) {
+      return determineAccountId().then(accountId => {
+        if (accountId != DEV_ACCOUNT_ID) {
+          return sendDRINotification();
+        }
+      });
     }
   }).then(complete).catch(promiseFail);
 });
