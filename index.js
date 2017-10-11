@@ -28,19 +28,27 @@ $.prototype.promise = function() {
   });
 };
 
+var _config;
+function config() {
+  if (_config === undefined) {
+    let path = "deploy.json";
+    if (!fs.existsSync(path)) {
+      fail(`You have to configure your deployments in ${path}.`);
+    }
+    _config = JSON.parse(fs.readFileSync(path));
+  }
+  return _config;
+}
+
 var _definitions;
 function deployDefinitions() {
   if (!_definitions) {
-    if (!fs.existsSync("deploy.json")) {
-      fail("You have to configure your deployments in deploy.json.");
-    }
-    let config = JSON.parse(fs.readFileSync("deploy.json"));
-    _definitions = config.deployments;
-    if (!_definitions && config.functionName) {
-      _definitions = [{functionName: config.functionName}];
+    _definitions = config().deployments;
+    if (!_definitions && config().functionName) {
+      _definitions = [{functionName: config().functionName}];
     }
     if (!_definitions) {
-      fail("Your deploy.json neither contains “deployments” nor “functionName”.");
+      fail("Your deployment configuration neither contains “deployments” nor “functionName”.");
     }
   }
   return _definitions;
@@ -166,6 +174,7 @@ function sendDRINotification() {
 
   console.log(`Now starting ${process.env.EDITOR} to edit the DRI announcement message…`);
   return Promise.all([
+    config().slack_service_name,
     basedirPromise().then(basedir => Path.basename(basedir)),
     commitPromise(),
     $("git remote get-url origin").promise(),
@@ -177,18 +186,19 @@ function sendDRINotification() {
         });
       });
     }),
-  ]).then(([serviceName, commit, repoUrl, driMessage]) => {
+  ]).then(([slackServiceName, serviceName, commit, repoUrl, driMessage]) => {
     slackr = require('slackr');
     slackr.conf.uri = process.env.DRI_SLACK_WEBHOOK_URI;
     if (repoUrl.startsWith("git@github.com:")) {
       repoUrl = `https://github.com/${repoUrl.slice(15)}`;
     }
-    var commitUrl = repoUrl;
+    let commitUrl = repoUrl;
     if (repoUrl.startsWith("https://github.com")) {
       commitUrl = `${repoUrl}/commit/${commit}`;
     }
 
-    var announcement = `:aws: :lambda: (${serviceName}) ` +
+    let service = slackServiceName ? `:${slackServiceName}:` : `(${serviceName})`;
+    let announcement = `:aws: :lambda: ${service} ` +
         `<@${process.env.SLACK_USER || process.env.USER}> deployed ` +
         `<${commitUrl}|#${commit.substr(0, 8)}>: ${driMessage}`;
     return slackr.string(announcement).then(() => {
@@ -201,7 +211,7 @@ function sendDRINotification() {
 }
 
 var _localConfig;
-function localConfig(key) {
+function localConfig() {
   if (_localConfig === undefined) {
     let path = `${process.env.HOME}/.config/infopark/aws_utils.json`;
     if (fs.existsSync(path)) {
@@ -210,10 +220,10 @@ function localConfig(key) {
       _localConfig = {};
     }
   }
-  return _localConfig[key];
+  return _localConfig;
 }
 
-const DEV_ACCOUNT_ID = process.env.INFOPARK_AWS_DEV_ACCOUNT_ID || localConfig('dev_account_id');
+const DEV_ACCOUNT_ID = process.env.INFOPARK_AWS_DEV_ACCOUNT_ID || localConfig().dev_account_id;
 if (!DEV_ACCOUNT_ID) {
   console.warn("The Infopark AWS development account ID is not configured.");
 }
