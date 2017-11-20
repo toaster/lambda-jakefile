@@ -1,6 +1,6 @@
 {
   "name": "code_cowboy-lambda-jakefile",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "A jakefile to support AWS Lambda deployment.",
   "main": "index.js",
   "scripts": {

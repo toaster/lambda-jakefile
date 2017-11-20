@@ -223,9 +223,10 @@ function localConfig() {
   return _localConfig;
 }
 
-const DEV_ACCOUNT_ID = process.env.INFOPARK_AWS_DEV_ACCOUNT_ID || localConfig().dev_account_id;
+const DEV_ACCOUNT_ID = process.env.DEV_ACCOUNT_ID ||
+    process.env.INFOPARK_AWS_DEV_ACCOUNT_ID || localConfig().dev_account_id;
 if (!DEV_ACCOUNT_ID) {
-  console.warn("The Infopark AWS development account ID is not configured.");
+  console.warn("The AWS development account ID is not configured.");
 }
 
 function determineAccountId() {
