@@ -149,7 +149,7 @@ function performDeployment(FunctionName, force, aliasName) {
   }).then((result) => {
     return lambda.updateAlias({
       FunctionName,
-      Name: 'active',
+      Name: aliasName,
       FunctionVersion: result.Version,
     }).promise();
   }).then(() => {
