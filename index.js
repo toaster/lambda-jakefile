@@ -124,13 +124,13 @@ task('package', {async: true}, function () {
 class Cancel extends Error {
 }
 
-function performDeployment(FunctionName, force) {
+function performDeployment(FunctionName, force, aliasName) {
   console.log(`Deploying to ${FunctionName} in AWS profile ${Aws.config.credentials.profile}.`);
 
   var package = jake.Task['package'].value[FunctionName];
   var lambda = new Aws.Lambda({region: 'eu-west-1'});
   return lambda.listAliases({FunctionName}).promise().then((result) => {
-    return result.Aliases.find((alias) => { return alias.Name == 'active'; });
+    return result.Aliases.find((alias) => { return alias.Name === aliasName; });
   }).then((activeAlias) => {
     return lambda.listVersionsByFunction({FunctionName}).promise().then((result) => {
       var activeVersion = result.Versions.find(
@@ -235,10 +235,10 @@ function determineAccountId() {
 }
 
 desc("Deploys the package on AWS.");
-task('deploy', ['package'], {async: true}, function(force) {
+task('deploy', ['package'], {async: true}, function(force, alias) {
   var deployments = [];
   for (let definition of deployDefinitions()) {
-    deployments.push(performDeployment(definition.functionName, force));
+    deployments.push(performDeployment(definition.functionName, force, alias || 'active'));
   }
   Promise.all(deployments).then(deployed => {
     if (deployed.includes(true)) {
