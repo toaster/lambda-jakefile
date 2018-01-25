@@ -62,31 +62,31 @@ function commitPromise() {
   return _commit;
 }
 
-var _basedir;
-function basedirPromise() {
-  if (!_basedir) {
-    _basedir = $("git rev-parse --show-toplevel").promise();
+var _baseDir;
+function baseDirPromise() {
+  if (!_baseDir) {
+    _baseDir = $("git rev-parse --show-toplevel").promise();
   }
-  return _basedir;
+  return _baseDir;
 }
 
 function createPackage(name, packageJson) {
-  return Promise.all([commitPromise(), basedirPromise()]).then(([commit, basedir]) => {
-    var packagedir = `${basedir}/pkg`;
-    var packagePath = `${packagedir}/${name}_${commit}.zip`;
+  return Promise.all([commitPromise(), baseDirPromise()]).then(([commit, baseDir]) => {
+    var packageDir = `${baseDir}/pkg`;
+    var packagePath = `${packageDir}/${name}_${commit}.zip`;
 
     return new Promise((resolve, reject) => {
       if (fs.existsSync(packagePath)) {
         console.log(`Package already exists in ${packagePath}`);
         resolve();
       } else {
-        if (!fs.existsSync(packagedir)) {
-          fs.mkdirSync(packagedir);
+        if (!fs.existsSync(packageDir)) {
+          fs.mkdirSync(packageDir);
         }
         let previousDir = process.cwd();
         process.chdir(Tempy.directory());
         let shellCommands = [
-          `rsync -a ${basedir}/.git .`,
+          `rsync -a ${baseDir}/.git .`,
           `git reset --hard ${commit}`,
         ];
         if (packageJson) {
@@ -175,7 +175,7 @@ function sendDRINotification() {
   console.log(`Now starting ${process.env.EDITOR} to edit the DRI announcement message…`);
   return Promise.all([
     config().slack_service_name,
-    basedirPromise().then(basedir => Path.basename(basedir)),
+    baseDirPromise().then(baseDir => Path.basename(baseDir)),
     commitPromise(),
     $("git remote get-url origin").promise(),
     sleep(2000).then(() => {
