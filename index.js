@@ -1,4 +1,5 @@
 const fs = require('fs');
+const Path = require('path');
 const $ = require('procstreams');
 const Aws = require('aws-sdk');
 const Tempy = require('tempy');
@@ -62,6 +63,16 @@ function commitPromise() {
   return _commit;
 }
 
+const _projectDir = process.cwd();
+function projectDir(options) {
+  let dir = _projectDir;
+  if (options && options.relativeTo) {
+    dir = Path.relative(options.relativeTo, dir);
+  }
+console.log("pd", _projectDir, options, dir);
+  return dir;
+}
+
 var _baseDir;
 function baseDirPromise() {
   if (!_baseDir) {
@@ -72,7 +83,7 @@ function baseDirPromise() {
 
 function createPackage(name, packageJson) {
   return Promise.all([commitPromise(), baseDirPromise()]).then(([commit, baseDir]) => {
-    var packageDir = `${baseDir}/pkg`;
+    var packageDir = `${projectDir()}/pkg`;
     var packagePath = `${packageDir}/${name}_${commit}.zip`;
 
     return new Promise((resolve, reject) => {
@@ -85,22 +96,25 @@ function createPackage(name, packageJson) {
         }
         let previousDir = process.cwd();
         process.chdir(Tempy.directory());
-        let shellCommands = [
+        jake.exec([
           `rsync -a ${baseDir}/.git .`,
           `git reset --hard ${commit}`,
-        ];
-        if (packageJson) {
-          shellCommands.push(`cp ${packageJson} package.json`);
-        }
-        shellCommands = shellCommands.concat([
-          "npm install --production",
-          "zip -rq package.zip index.js node_modules lib app",
-          `cp package.zip ${packagePath}`,
-        ])
-        jake.exec(shellCommands, {printStdout: true, printStderr: true}, (...args) => {
-          process.chdir(previousDir);
-          console.log(`Package created in ${packagePath}`);
-          resolve();
+        ], {printStdout: true, printStderr: true}, (...args) => {
+          process.chdir(projectDir({relativeTo: baseDir}));
+          let shellCommands = [];
+          if (packageJson) {
+            shellCommands.push(`cp ${packageJson} package.json`);
+          }
+          shellCommands = shellCommands.concat([
+            "npm install --production",
+            "zip -rq package.zip index.js node_modules lib app",
+            `cp package.zip ${packagePath}`,
+          ])
+          jake.exec(shellCommands, {printStdout: true, printStderr: true}, (...args) => {
+            process.chdir(previousDir);
+            console.log(`Package created in ${packagePath}`);
+            resolve();
+          });
         });
       }
     }).then(() => {
