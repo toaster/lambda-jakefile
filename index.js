@@ -69,7 +69,6 @@ function projectDir(options) {
   if (options && options.relativeTo) {
     dir = Path.relative(options.relativeTo, dir);
   }
-console.log("pd", _projectDir, options, dir);
   return dir;
 }
 
