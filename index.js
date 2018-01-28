@@ -55,6 +55,16 @@ function deployDefinitions() {
   return _definitions;
 }
 
+var _repositoryName;
+function repositoryNamePromise() {
+  if (!_repositoryName) {
+    _repositoryName = $("git remote get-url origin").promise().then(url => {
+      return Path.basename(url.substring(0, url.length - Path.extname(url).length));
+    });
+  }
+  return _repositoryName;
+}
+
 var _commit;
 function commitPromise() {
   if (!_commit) {
@@ -180,7 +190,6 @@ function performDeployment(FunctionName, force, aliasName) {
 
 function sendDRINotification() {
   if (!process.env.EDITOR) { throw "EDITOR is not set."; }
-  if (!process.env.DRI_SLACK_WEBHOOK_URI) { throw "DRI_SLACK_WEBHOOK_URI is not set."; }
 
   const sleep = require('sleep-promise');
   const Path = require('path');
@@ -188,7 +197,10 @@ function sendDRINotification() {
   console.log(`Now starting ${process.env.EDITOR} to edit the DRI announcement message…`);
   return Promise.all([
     config().slack_service_name,
-    baseDirPromise().then(baseDir => Path.basename(baseDir)),
+    Promise.all([
+      repositoryNamePromise(),
+      baseDirPromise().then(baseDir => projectDir({relativeTo: baseDir})),
+    ]).then(components => components.filter(e => e).join("/")),
     commitPromise(),
     $("git remote get-url origin").promise(),
     sleep(2000).then(() => {
@@ -200,8 +212,6 @@ function sendDRINotification() {
       });
     }),
   ]).then(([slackServiceName, serviceName, commit, repoUrl, driMessage]) => {
-    slackr = require('slackr');
-    slackr.conf.uri = process.env.DRI_SLACK_WEBHOOK_URI;
     if (repoUrl.startsWith("git@github.com:")) {
       repoUrl = `https://github.com/${repoUrl.slice(15)}`;
     }
@@ -209,14 +219,21 @@ function sendDRINotification() {
     if (repoUrl.startsWith("https://github.com")) {
       commitUrl = `${repoUrl}/commit/${commit}`;
     }
-
     let service = slackServiceName ? `:${slackServiceName}:` : `(${serviceName})`;
     let announcement = `:aws: :lambda: ${service} ` +
         `<@${process.env.SLACK_USER || process.env.USER}> deployed ` +
         `<${commitUrl}|#${commit.substr(0, 8)}>: ${driMessage}`;
-    return slackr.string(announcement).then(() => {
-      console.log(`Sent DRI announcement: ${announcement}`);
-    });
+
+    if (process.env.DRI_SLACK_WEBHOOK_URI) {
+      const slackr = require('slackr');
+      slackr.conf.uri = process.env.DRI_SLACK_WEBHOOK_URI;
+      return slackr.string(announcement).then(() => {
+        console.log(`Sent DRI announcement: ${announcement}`);
+      });
+    } else {
+      console.log("DRI_SLACK_WEBHOOK_URI not set, could not send DRI announcement.");
+      console.log("Please send it manually:", announcement);
+    }
   }).catch((error) => {
     console.log(`Could not notify DRI channel: ${error}`);
     console.log("Don't forget to post an announcement there.");
