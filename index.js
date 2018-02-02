@@ -77,7 +77,7 @@ const _projectDir = process.cwd();
 function projectDir(options) {
   let dir = _projectDir;
   if (options && options.relativeTo) {
-    dir = Path.relative(options.relativeTo, dir);
+    dir = Path.relative(options.relativeTo, dir) || ".";
   }
   return dir;
 }
