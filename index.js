@@ -197,10 +197,10 @@ function sendDRINotification() {
   console.log(`Now starting ${process.env.EDITOR} to edit the DRI announcement message…`);
   return Promise.all([
     config().slack_service_name,
-    Promise.all([
-      repositoryNamePromise(),
-      baseDirPromise().then(baseDir => projectDir({relativeTo: baseDir})),
-    ]).then(components => components.filter(e => e).join("/")),
+    Promise.all([repositoryNamePromise(), baseDirPromise()]).then(([repositoryName, baseDir]) => {
+      let projectName = projectDir({relativeTo: baseDir});
+      return projectName != "." ? `${repositoryName}/${projectName}` : repositoryName;
+    }),
     commitPromise(),
     $("git remote get-url origin").promise(),
     sleep(2000).then(() => {
