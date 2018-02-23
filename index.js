@@ -144,6 +144,25 @@ task('package', {async: true}, function () {
   chain.then(() => complete(packages)).catch(e => promiseFail(e));
 });
 
+function awsGatherAll(client, fnName, params) {
+  return client[fnName](params).promise().then(result => {
+    let keys = Object.keys(result).filter(key => key !== 'NextMarker');
+    if (keys.length !== 1) {
+      throw "could not gather all, result contains ambiguous keys";
+    }
+    let items = result[keys[0]];
+
+    if (result.NextMarker) {
+      newParams = {};
+      Object.assign(newParams, params);
+      newParams.Marker = result.NextMarker;
+      return awsGatherAll(client, fnName, newParams).then(moreItems => items.concat(moreItems));
+    } else {
+      return items;
+    }
+  });
+}
+
 class Cancel extends Error {
 }
 
@@ -152,12 +171,11 @@ function performDeployment(FunctionName, force, aliasName) {
 
   var package = jake.Task['package'].value[FunctionName];
   var lambda = new Aws.Lambda({region: 'eu-west-1'});
-  return lambda.listAliases({FunctionName}).promise().then((result) => {
-    return result.Aliases.find((alias) => { return alias.Name === aliasName; });
-  }).then((activeAlias) => {
-    return lambda.listVersionsByFunction({FunctionName}).promise().then((result) => {
-      var activeVersion = result.Versions.find(
-          (version) => { return version.Version == activeAlias.FunctionVersion; });
+  return awsGatherAll(lambda, 'listAliases', {FunctionName}).then(aliases => {
+    return aliases.find(alias => alias.Name === aliasName);
+  }).then(activeAlias => {
+    return awsGatherAll(lambda, 'listVersionsByFunction', {FunctionName}).then(versions => {
+      var activeVersion = versions.find(version => version.Version == activeAlias.FunctionVersion);
       if (activeVersion.Description == package.commit && !force) {
         throw new Cancel(`Commit ${package.commit} is already deployed at ${FunctionName}.`);
       }
