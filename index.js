@@ -170,7 +170,7 @@ function performDeployment(FunctionName, force, aliasName) {
   console.log(`Deploying to ${FunctionName} in AWS profile ${Aws.config.credentials.profile}.`);
 
   var package = jake.Task['package'].value[FunctionName];
-  var lambda = new Aws.Lambda({region: 'eu-west-1'});
+  var lambda = new Aws.Lambda({region: Aws.config.region || 'eu-west-1'});
   return awsGatherAll(lambda, 'listAliases', {FunctionName}).then(aliases => {
     return aliases.find(alias => alias.Name === aliasName);
   }).then(activeAlias => {
