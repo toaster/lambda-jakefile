@@ -4,6 +4,11 @@ const $ = require('procstreams');
 const Aws = require('aws-sdk');
 const Tempy = require('tempy');
 
+//
+//
+// internal functions
+//
+
 // jake's fail method is not suitable for promises
 function promiseFail(e) {
   if (!(e instanceof Error)) {
@@ -91,58 +96,29 @@ function baseDirPromise() {
 }
 
 function createPackage(name, packageJson) {
-  return Promise.all([commitPromise(), baseDirPromise()]).then(([commit, baseDir]) => {
-    var packageDir = `${projectDir()}/pkg`;
+  return buildPackagePromise((commit, packageDir, callback) => {
     var packagePath = `${packageDir}/${name}_${commit}.zip`;
 
-    return new Promise((resolve, reject) => {
-      if (fs.existsSync(packagePath)) {
-        console.log(`Package already exists in ${packagePath}`);
-        resolve();
-      } else {
-        if (!fs.existsSync(packageDir)) {
-          fs.mkdirSync(packageDir);
-        }
-        let previousDir = process.cwd();
-        process.chdir(Tempy.directory());
-        jake.exec([
-          `rsync -a ${baseDir}/.git .`,
-          `git reset --hard ${commit}`,
-        ], {printStdout: true, printStderr: true}, (...args) => {
-          process.chdir(projectDir({relativeTo: baseDir}));
-          let shellCommands = [];
-          if (packageJson) {
-            shellCommands.push(`cp ${packageJson} package.json`);
-          }
-          shellCommands = shellCommands.concat([
-            "npm install --production",
-            "zip -rq package.zip index.js node_modules lib app",
-            `cp package.zip ${packagePath}`,
-          ])
-          jake.exec(shellCommands, {printStdout: true, printStderr: true}, (...args) => {
-            process.chdir(previousDir);
-            console.log(`Package created in ${packagePath}`);
-            resolve();
-          });
-        });
+    if (fs.existsSync(packagePath)) {
+      console.log(`Package already exists in ${packagePath}`);
+      callback({name: name, commit: commit, path: packagePath});
+    } else {
+      let shellCommands = [];
+      if (packageJson) {
+        shellCommands.push(`cp ${packageJson} package.json`);
       }
-    }).then(() => {
-      return {name: name, commit: commit, path: `${packagePath}`};
-    });
+      shellCommands = shellCommands.concat([
+        "npm install --production",
+        "zip -rq package.zip index.js node_modules lib app",
+        `cp package.zip ${packagePath}`,
+      ])
+      jake.exec(shellCommands, {printStdout: true, printStderr: true}, (...args) => {
+        console.log(`Package created in ${packagePath}`);
+        callback({name: name, commit: commit, path: packagePath});
+      });
+    }
   });
 }
-
-desc('Creates a package for upload to AWS.');
-task('package', {async: true}, function () {
-  var chain = Promise.resolve();
-  var packages = {};
-  for (let definition of deployDefinitions()) {
-    chain = chain
-        .then(() => createPackage(definition.functionName, definition.packageJson))
-        .then(package => { packages[package.name] = package; });
-  }
-  chain.then(() => complete(packages)).catch(e => promiseFail(e));
-});
 
 function awsGatherAll(client, fnName, params) {
   return client[fnName](params).promise().then(result => {
@@ -281,6 +257,60 @@ function determineAccountId() {
   var sts = new Aws.STS();
   return sts.getCallerIdentity().promise().then(({Account}) => Account);
 }
+
+
+//
+// exported functions
+//
+
+function buildPackagePromise(builder) {
+  return Promise.all([commitPromise(), baseDirPromise()]).then(([commit, baseDir]) => {
+    var packageDir = `${projectDir()}/pkg`;
+
+    return new Promise((resolve, reject) => {
+      if (!fs.existsSync(packageDir)) {
+        fs.mkdirSync(packageDir);
+      }
+      let previousDir = process.cwd();
+      process.chdir(Tempy.directory());
+      jake.exec([
+        `rsync -a ${baseDir}/.git .`,
+        `git reset --hard ${commit}`,
+      ], {printStdout: true, printStderr: true}, (...args) => {
+        process.chdir(projectDir({relativeTo: baseDir}));
+        builder(commit, packageDir, (result, err) => {
+          process.chdir(previousDir);
+          if (err) {
+            reject(err);
+          } else {
+            resolve(result);
+          }
+        });
+      });
+    });
+  });
+}
+
+module.exports = {
+  buildPackagePromise
+};
+
+
+//
+// tasks
+//
+
+desc('Creates a package for upload to AWS.');
+task('package', {async: true}, function () {
+  var chain = Promise.resolve();
+  var packages = {};
+  for (let definition of deployDefinitions()) {
+    chain = chain
+        .then(() => createPackage(definition.functionName, definition.packageJson))
+        .then(package => { packages[package.name] = package; });
+  }
+  chain.then(() => complete(packages)).catch(e => promiseFail(e));
+});
 
 desc("Deploys the package on AWS.");
 task('deploy', ['package'], {async: true}, function(force, alias) {
