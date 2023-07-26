@@ -151,8 +151,8 @@ function performDeployment(FunctionName, force, aliasName) {
     return aliases.find(alias => alias.Name === aliasName);
   }).then(activeAlias => {
     return awsGatherAll(lambda, 'listVersionsByFunction', {FunctionName}).then(versions => {
-      var activeVersion = versions.find(version => version.Version == activeAlias.FunctionVersion);
-      if (activeVersion.Description == pkg.commit && !force) {
+      var activeVersion = versions.find(version => version.Version === activeAlias.FunctionVersion);
+      if (activeVersion.Description === pkg.commit && !force) {
         throw new Cancel(`Commit ${pkg.commit} is already deployed at ${FunctionName}.`);
       }
     });
@@ -192,7 +192,7 @@ function sendDRINotification() {
     config().slack_service_name,
     Promise.all([repositoryNamePromise(), baseDirPromise()]).then(([repositoryName, baseDir]) => {
       let projectName = projectDir({relativeTo: baseDir});
-      return projectName != "." ? `${repositoryName}/${projectName}` : repositoryName;
+      return projectName !== "." ? `${repositoryName}/${projectName}` : repositoryName;
     }),
     commitPromise(),
     $p("git remote get-url origin").promise(),
@@ -320,7 +320,7 @@ task('deploy', ['package'], {async: true}, function(force, alias) {
   Promise.all(deployments).then(deployed => {
     if (deployed.includes(true)) {
       return determineAccountId().then(accountId => {
-        if (accountId != DEV_ACCOUNT_ID) {
+        if (accountId !== DEV_ACCOUNT_ID) {
           return sendDRINotification();
         }
       });
