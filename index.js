@@ -1,6 +1,6 @@
 const fs = require('fs');
 const Path = require('path');
-const $ = require('procstreams');
+const $p = require('procstreams');
 const Aws = require('aws-sdk');
 const Tempy = require('tempy');
 
@@ -17,7 +17,7 @@ function promiseFail(e) {
   jake.program.handleErr(e);
 }
 
-$.prototype.promise = function() {
+$p.prototype.promise = function() {
   return new Promise((resolve, reject) => {
     this.data((err, stdout, stderr) => {
       if (err) {
@@ -63,7 +63,7 @@ function deployDefinitions() {
 var _repositoryName;
 function repositoryNamePromise() {
   if (!_repositoryName) {
-    _repositoryName = $("git remote get-url origin").promise().then(url => {
+    _repositoryName = $p("git remote get-url origin").promise().then(url => {
       return Path.basename(url.substring(0, url.length - Path.extname(url).length));
     });
   }
@@ -73,7 +73,7 @@ function repositoryNamePromise() {
 var _commit;
 function commitPromise() {
   if (!_commit) {
-    _commit = $("git rev-parse @").promise();
+    _commit = $p("git rev-parse @").promise();
   }
   return _commit;
 }
@@ -90,7 +90,7 @@ function projectDir(options) {
 var _baseDir;
 function baseDirPromise() {
   if (!_baseDir) {
-    _baseDir = $("git rev-parse --show-toplevel").promise();
+    _baseDir = $p("git rev-parse --show-toplevel").promise();
   }
   return _baseDir;
 }
@@ -196,7 +196,7 @@ function sendDRINotification() {
       return projectName != "." ? `${repositoryName}/${projectName}` : repositoryName;
     }),
     commitPromise(),
-    $("git remote get-url origin").promise(),
+    $p("git remote get-url origin").promise(),
     sleep(2000).then(() => {
       return new Promise((resolve, reject) => {
         var tmpFile = Tempy.file();
