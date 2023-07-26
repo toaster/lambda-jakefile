@@ -15,7 +15,7 @@ function promiseFail(e) {
     e = new Error(e);
   }
   jake.program.handleErr(e);
-};
+}
 
 $.prototype.promise = function() {
   return new Promise((resolve, reject) => {
