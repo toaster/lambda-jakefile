@@ -215,7 +215,7 @@ function sendDRINotification() {
     let service = slackServiceName ? `:${slackServiceName}:` : `(${serviceName})`;
     let announcement = `:aws: :lambda: ${service} ` +
         `<@${process.env.SLACK_USER || process.env.USER}> deployed ` +
-        `<${commitUrl}|#${commit.substr(0, 8)}>: ${driMessage}`;
+        `<${commitUrl}|#${commit.substring(0, 8)}>: ${driMessage}`;
 
     if (process.env.DRI_SLACK_WEBHOOK_URI) {
       const slackr = require('slackr');
