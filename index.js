@@ -186,7 +186,6 @@ function sendDRINotification() {
   if (!process.env.EDITOR) { throw "EDITOR is not set."; }
 
   const sleep = require('sleep-promise');
-  const Path = require('path');
 
   console.log(`Now starting ${process.env.EDITOR} to edit the DRI announcement message…`);
   return Promise.all([
