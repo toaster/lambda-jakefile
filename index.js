@@ -162,6 +162,8 @@ function performDeployment(FunctionName, force, aliasName) {
       ZipFile: fs.readFileSync(pkg.path)
     }).promise();
   }).then(() => {
+    return lambda.waitFor("functionUpdated", {FunctionName}).promise();
+  }).then(() => {
     return lambda.publishVersion({FunctionName, Description: pkg.commit}).promise();
   }).then((result) => {
     return lambda.updateAlias({
