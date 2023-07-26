@@ -112,7 +112,7 @@ function createPackage(name, packageJson) {
         "zip -rq package.zip *.js node_modules lib app",
         `cp package.zip ${packagePath}`,
       ])
-      jake.exec(shellCommands, {printStdout: true, printStderr: true}, (...args) => {
+      jake.exec(shellCommands, {printStdout: true, printStderr: true}, () => {
         console.log(`Package created in ${packagePath}`);
         callback({name: name, commit: commit, path: packagePath});
       });
@@ -197,7 +197,7 @@ function sendDRINotification() {
     commitPromise(),
     $p("git remote get-url origin").promise(),
     sleep(2000).then(() => {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         var tmpFile = Tempy.file();
         jake.exec([`${process.env.EDITOR} ${tmpFile}`], {interactive: true}, () => {
           resolve(fs.readFileSync(tmpFile));
@@ -275,7 +275,7 @@ function buildPackagePromise(builder) {
       jake.exec([
         `rsync -a ${baseDir}/.git .`,
         `git reset --hard ${commit}`,
-      ], {printStdout: true, printStderr: true}, (...args) => {
+      ], {printStdout: true, printStderr: true}, () => {
         process.chdir(projectDir({relativeTo: baseDir}));
         builder(commit, packageDir, (result, err) => {
           process.chdir(previousDir);
