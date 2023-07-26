@@ -290,10 +290,7 @@ function buildPackagePromise(builder) {
   });
 }
 
-module.exports = {
-  buildPackagePromise
-};
-
+module.buildPackagePromise = buildPackagePromise;
 
 //
 // tasks
