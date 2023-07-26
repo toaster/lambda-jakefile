@@ -21,10 +21,10 @@ $p.prototype.promise = function() {
   return new Promise((resolve, reject) => {
     this.data((err, stdout, stderr) => {
       if (err) {
-        var msg = `${this.spawnargs.join(" ")} failed: ` + (
-          (stderr && stderr.toString()) ||
-          (stdout && stdout.toString()) ||
-          `command failed: ${err.code}`
+        let msg = `${this.spawnargs.join(" ")} failed: ` + (
+            (stderr && stderr.toString()) ||
+            (stdout && stdout.toString()) ||
+            `command failed: ${err.code}`
         );
         reject(new Error(msg));
       } else {
@@ -34,7 +34,7 @@ $p.prototype.promise = function() {
   });
 };
 
-var _config;
+let _config;
 function config() {
   if (_config === undefined) {
     let path = "deploy.json";
@@ -46,7 +46,7 @@ function config() {
   return _config;
 }
 
-var _definitions;
+let _definitions;
 function deployDefinitions() {
   if (!_definitions) {
     _definitions = config().deployments;
@@ -60,7 +60,7 @@ function deployDefinitions() {
   return _definitions;
 }
 
-var _repositoryName;
+let _repositoryName;
 function repositoryNamePromise() {
   if (!_repositoryName) {
     _repositoryName = $p("git remote get-url origin").promise().then(url => {
@@ -70,7 +70,7 @@ function repositoryNamePromise() {
   return _repositoryName;
 }
 
-var _commit;
+let _commit;
 function commitPromise() {
   if (!_commit) {
     _commit = $p("git rev-parse @").promise();
@@ -87,7 +87,7 @@ function projectDir(options) {
   return dir;
 }
 
-var _baseDir;
+let _baseDir;
 function baseDirPromise() {
   if (!_baseDir) {
     _baseDir = $p("git rev-parse --show-toplevel").promise();
@@ -97,7 +97,7 @@ function baseDirPromise() {
 
 function createPackage(name, packageJson) {
   return buildPackagePromise((commit, packageDir, callback) => {
-    var packagePath = `${packageDir}/${name}_${commit}.zip`;
+    let packagePath = `${packageDir}/${name}_${commit}.zip`;
 
     if (fs.existsSync(packagePath)) {
       console.log(`Package already exists in ${packagePath}`);
@@ -145,13 +145,13 @@ class Cancel extends Error {
 function performDeployment(FunctionName, force, aliasName) {
   console.log(`Deploying to ${FunctionName} in AWS profile ${Aws.config.credentials.profile}.`);
 
-  var pkg = jake.Task['package'].value[FunctionName];
-  var lambda = new Aws.Lambda({region: Aws.config.region || 'eu-west-1'});
+  let pkg = jake.Task['package'].value[FunctionName];
+  let lambda = new Aws.Lambda({region: Aws.config.region || 'eu-west-1'});
   return awsGatherAll(lambda, 'listAliases', {FunctionName}).then(aliases => {
     return aliases.find(alias => alias.Name === aliasName);
   }).then(activeAlias => {
     return awsGatherAll(lambda, 'listVersionsByFunction', {FunctionName}).then(versions => {
-      var activeVersion = versions.find(version => version.Version === activeAlias.FunctionVersion);
+      let activeVersion = versions.find(version => version.Version === activeAlias.FunctionVersion);
       if (activeVersion.Description === pkg.commit && !force) {
         throw new Cancel(`Commit ${pkg.commit} is already deployed at ${FunctionName}.`);
       }
@@ -198,7 +198,7 @@ function sendDRINotification() {
     $p("git remote get-url origin").promise(),
     sleep(2000).then(() => {
       return new Promise((resolve) => {
-        var tmpFile = Tempy.file();
+        let tmpFile = Tempy.file();
         jake.exec([`${process.env.EDITOR} ${tmpFile}`], {interactive: true}, () => {
           resolve(fs.readFileSync(tmpFile));
         });
@@ -233,7 +233,7 @@ function sendDRINotification() {
   });
 }
 
-var _localConfig;
+let _localConfig;
 function localConfig() {
   if (_localConfig === undefined) {
     let path = `${process.env.HOME}/.config/infopark/aws_utils.json`;
@@ -253,7 +253,7 @@ if (!DEV_ACCOUNT_ID) {
 }
 
 function determineAccountId() {
-  var sts = new Aws.STS();
+  let sts = new Aws.STS();
   return sts.getCallerIdentity().promise().then(({Account}) => Account);
 }
 
@@ -264,7 +264,7 @@ function determineAccountId() {
 
 function buildPackagePromise(builder) {
   return Promise.all([commitPromise(), baseDirPromise()]).then(([commit, baseDir]) => {
-    var packageDir = `${projectDir()}/pkg`;
+    let packageDir = `${projectDir()}/pkg`;
 
     return new Promise((resolve, reject) => {
       if (!fs.existsSync(packageDir)) {
@@ -301,8 +301,8 @@ module.exports = {
 
 desc('Creates a package for upload to AWS.');
 task('package', {async: true}, function () {
-  var chain = Promise.resolve();
-  var packages = {};
+  let chain = Promise.resolve();
+  let packages = {};
   for (let definition of deployDefinitions()) {
     chain = chain
         .then(() => createPackage(definition.functionName, definition.packageJson))
@@ -313,7 +313,7 @@ task('package', {async: true}, function () {
 
 desc("Deploys the package on AWS.");
 task('deploy', ['package'], {async: true}, function(force, alias) {
-  var deployments = [];
+  let deployments = [];
   for (let definition of deployDefinitions()) {
     deployments.push(performDeployment(definition.functionName, force, alias || 'active'));
   }
