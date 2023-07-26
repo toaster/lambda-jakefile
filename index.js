@@ -145,24 +145,24 @@ class Cancel extends Error {
 function performDeployment(FunctionName, force, aliasName) {
   console.log(`Deploying to ${FunctionName} in AWS profile ${Aws.config.credentials.profile}.`);
 
-  var package = jake.Task['package'].value[FunctionName];
+  var pkg = jake.Task['package'].value[FunctionName];
   var lambda = new Aws.Lambda({region: Aws.config.region || 'eu-west-1'});
   return awsGatherAll(lambda, 'listAliases', {FunctionName}).then(aliases => {
     return aliases.find(alias => alias.Name === aliasName);
   }).then(activeAlias => {
     return awsGatherAll(lambda, 'listVersionsByFunction', {FunctionName}).then(versions => {
       var activeVersion = versions.find(version => version.Version == activeAlias.FunctionVersion);
-      if (activeVersion.Description == package.commit && !force) {
-        throw new Cancel(`Commit ${package.commit} is already deployed at ${FunctionName}.`);
+      if (activeVersion.Description == pkg.commit && !force) {
+        throw new Cancel(`Commit ${pkg.commit} is already deployed at ${FunctionName}.`);
       }
     });
   }).then(() => {
     return lambda.updateFunctionCode({
       FunctionName,
-      ZipFile: fs.readFileSync(package.path)
+      ZipFile: fs.readFileSync(pkg.path)
     }).promise();
   }).then(() => {
-    return lambda.publishVersion({FunctionName, Description: package.commit}).promise();
+    return lambda.publishVersion({FunctionName, Description: pkg.commit}).promise();
   }).then((result) => {
     return lambda.updateAlias({
       FunctionName,
@@ -307,7 +307,7 @@ task('package', {async: true}, function () {
   for (let definition of deployDefinitions()) {
     chain = chain
         .then(() => createPackage(definition.functionName, definition.packageJson))
-        .then(package => { packages[package.name] = package; });
+        .then(pkg => { packages[pkg.name] = pkg; });
   }
   chain.then(() => complete(packages)).catch(e => promiseFail(e));
 });
