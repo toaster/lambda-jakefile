@@ -1,6 +1,6 @@
 {
   "name": "code_cowboy-lambda-jakefile",
-  "version": "0.15.1",
+  "version": "0.16.0",
   "description": "A jakefile to support AWS Lambda deployment.",
   "main": "index.js",
   "scripts": {
@@ -21,7 +21,8 @@
   },
   "homepage": "https://github.com/toaster/lambda-jakefile#readme",
   "dependencies": {
-    "aws-sdk": "^2.1680.0",
+    "@aws-sdk/client-lambda": "^3.636.0",
+    "@aws-sdk/client-sts": "^3.635.0",
     "jake": "^10.0.0",
     "procstreams": "^0.3.0",
     "slackr": "^1.0.0",

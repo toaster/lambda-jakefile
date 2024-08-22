@@ -1,7 +1,8 @@
 const fs = require('fs');
 const Path = require('path');
 const $p = require('procstreams');
-const Aws = require('aws-sdk');
+const { Lambda, waitUntilFunctionUpdated } = require("@aws-sdk/client-lambda");
+const { STS } = require("@aws-sdk/client-sts");
 const Tempy = require('tempy');
 
 //
@@ -121,9 +122,10 @@ function createPackage(name, packageJson) {
 }
 
 function awsGatherAll(client, fnName, params) {
-  return client[fnName](params).promise().then(result => {
-    let keys = Object.keys(result).filter(key => key !== 'NextMarker');
+  return client[fnName](params).then(result => {
+    let keys = Object.keys(result).filter(key => key !== 'NextMarker' && key !== '$metadata');
     if (keys.length !== 1) {
+      console.log("awsGatherAll: filtered keys:", keys);
       throw "could not gather all, result contains ambiguous keys";
     }
     let items = result[keys[0]];
@@ -143,10 +145,14 @@ class Cancel extends Error {
 }
 
 function performDeployment(FunctionName, force, aliasName) {
-  console.log(`Deploying to ${FunctionName} in AWS profile ${Aws.config.credentials.profile}.`);
+  let profile = process.env.AWS_PROFILE;
+  if (profile === undefined) {
+    profile = "default";
+  }
+  console.log(`Deploying to ${FunctionName} in AWS profile ${profile}.`);
 
   let pkg = jake.Task['package'].value[FunctionName];
-  let lambda = new Aws.Lambda({region: Aws.config.region || 'eu-west-1'});
+  let lambda = new Lambda();
   return awsGatherAll(lambda, 'listAliases', {FunctionName}).then(aliases => {
     return aliases.find(alias => alias.Name === aliasName);
   }).then(activeAlias => {
@@ -160,17 +166,17 @@ function performDeployment(FunctionName, force, aliasName) {
     return lambda.updateFunctionCode({
       FunctionName,
       ZipFile: fs.readFileSync(pkg.path)
-    }).promise();
+    });
   }).then(() => {
-    return lambda.waitFor("functionUpdated", {FunctionName}).promise();
+    return waitUntilFunctionUpdated({client: lambda, maxWaitTime: 200}, {FunctionName});
   }).then(() => {
-    return lambda.publishVersion({FunctionName, Description: pkg.commit}).promise();
+    return lambda.publishVersion({FunctionName, Description: pkg.commit});
   }).then((result) => {
     return lambda.updateAlias({
       FunctionName,
       Name: aliasName,
       FunctionVersion: result.Version,
-    }).promise();
+    });
   }).then(() => {
     console.log(`Deployed ${FunctionName}.`);
     return true;
@@ -255,8 +261,8 @@ if (!DEV_ACCOUNT_ID) {
 }
 
 function determineAccountId() {
-  let sts = new Aws.STS();
-  return sts.getCallerIdentity().promise().then(({Account}) => Account);
+  let sts = new STS();
+  return sts.getCallerIdentity().then(({Account}) => Account);
 }
 
 
